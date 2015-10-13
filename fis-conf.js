@@ -57,17 +57,19 @@ fis.config.set('roadmap.path', [
     }
 ].concat(fis.config.get('roadmap.path', [])));
 
+var modulesDir = './widget/modules/';
+
 // 自动分析entry
 var entry = function () {
     var result = {};
 
     glob.sync(
-        './widget/modules/*'
+        modulesDir + '*'
     ).forEach(function (name) {
             // TODO: 支持linux、达尔文
             var dirs = name.match(/[^/]+/g);
             var n = dirs[dirs.length - 1];
-            result[n] = './widget/modules/' + n + '/' + n + '.js';
+            result[n] = modulesDir + n + '/' + n + '.js';
         });
 
     return result;
@@ -134,6 +136,6 @@ function compilerCallBack(err, stats) {
         });
     }
 
-    
+
 }
 
