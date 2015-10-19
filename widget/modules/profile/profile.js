@@ -10,5 +10,5 @@
 /* global module */
 
 'use strict';
-
-console.log('profile 11111fdsfdsafdsfsfs1');
+require('../../vendor/bootstrap/bootstrap');
+require('../../components/dialog/dialog');

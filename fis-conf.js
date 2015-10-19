@@ -11,7 +11,6 @@ var commonsPlugin = new webpack.optimize.CommonsChunkPlugin('common.js');
 var glob = require('glob');
 var path = require('path');
 
-
 // fisp 基础配置
 fis.config.merge({
     namespace: 'fisPack',
@@ -39,60 +38,234 @@ fis.config.set('deploy', {
  */
 fis.config.set('roadmap.path', [
     {
-        reg: 'package.json',
-        release: false
-    },
-    {
         reg: /^\/node_modules\/(.*)/i,
         release: false
-    },
-    {
+    }
+    , {
         reg: /^\/static\/(.*)/i,
         isMod: false
-    },
-    {
+    }
+    , {
         reg: /^\/widget\/.*js$/i,
         isMod: false,
         release: '${statics}/${namespace}/$&'
     }
 ].concat(fis.config.get('roadmap.path', [])));
 
-var modulesDir = './widget/modules/';
 
-// 自动分析entry
-var entry = function () {
+var dirResolver = function (pathPartPattern) {
     var result = {};
 
-    glob.sync(
-        modulesDir + '*'
-    ).forEach(function (name) {
-            // TODO: 支持linux、达尔文
+    // 分析出路径
+    var $paths = glob.sync(pathPartPattern);
+
+    if (!$paths.length) {
+        return null;
+    }
+
+    $paths.forEach(
+        function (name) {
+
+            var childPath = dirResolver(
+                [name, '*'].join(path.sep)
+            );
+
             var dirs = name.match(/[^/]+/g);
             var n = dirs[dirs.length - 1];
-            result[n] = modulesDir + n + '/' + n + '.js';
-        });
+
+            result[n] = childPath ? childPath : 0;
+        }
+    );
 
     return result;
 };
 
+// 得到一颗文件目录的树
+var modulesMap = dirResolver('./widget/*');
+
+// 模块存放路径
+var modulesDir = './widget/modules/';
+
+// 自动分析entry
+var entry = function (data) {
+
+    var result = {};
+
+    for (var key in data) {
+        if (key === 'modules') {
+            result = arguments.callee(data[key]);
+            break;
+        } else {
+            result[key] = modulesDir + key + '/' + key + '.js';
+        }
+    }
+
+    return result;
+
+};
+
+/**
+ * 自动分析别名
+ *
+ * 预期为（例如）：
+ *
+ *      widget 文件夹下有未知目录结构，将会分析为 “相邻子目录:模块名”，
+ *
+ *      e.g.
+ *
+ *          widget
+ *              - components
+ *                      - dialog
+ *                      - validator
+ *              - modules
+ *                      - profile
+ *                      - feed
+ *              - someDir
+ *                      - someModule1
+ *                      - someModule2
+ *
+ *      require( 'components:dialog' ) // eq require( './components/dialog/dialog' );
+ *      require( 'modules:feed' )      // eq require( './modules/feed/feed' );
+ *      require( 'someDir:someModule2' )  // eq require( './someDir/someModule2/someModule2' );
+ *
+ *  可能看起来没什么区别，但是当我们实际应用中，在不同目录的文件里require就会方便很多。
+ *
+ *
+ * TODO：肯定有优化空间。
+ *
+ *
+ * @param data
+ */
+var alias = function (data, traditional) {
+    var result = {};
+
+    for (var key in data) {
+        if (traditional) {
+
+        } else {
+
+        }
+    }
+
+    return result;
+};
+
+console.log(alias(modulesMap));
+
 // webpack配置
 var webpackConfig = {
-    entry: entry(),
-    output: {
-        path: './static/',
-        filename: './[name].js'
-    },
-    resolve: {
-        extensions: ['', '.js', '.css']
-    },
-    module: {
-        loaders: [
-            {test: /\.css$/, loader: 'style-loader!css-loader'},
-            {test: /\.(png|jpg|gif)$/, loader: 'url-loader?limit=8192'}
+
+    // 基本目录（绝对路径）用来分析 entry。
+    context: __dirname
+
+    // 入口文件及对应的生成包，这里自动分析/widget/modules文件夹下的相邻子文件夹名，当作包名。
+    , entry: entry(modulesMap)
+
+    // 输出配置
+    , output: {
+        path: './static/'                 // 输出的路径
+        // , publicPath: ''               // http://webpack.github.io/docs/configuration.html#output-publicpath
+        , filename: './[name].js'         // 出处包名称,相对路径
+        , sourceMapFilename: '[name].map' // 输出map文件
+        , jsonpFunction: 'fisPackJsonp'   // 对应多个webpack实例在运行环境中，这里修改为fisPackJsonp
+    }
+
+    /**
+     * 后缀名数据，来分析模块
+     *
+     * e.g
+     *
+     *      一个模块是：feed/feed.js
+     *      那么他会按照 extensions 提供的顺序去查找：
+     *
+     *      feed/feed.js
+     *      feed/feed.js.js
+     *      feed/feed.js.es6
+     *      feed/feed.js.css
+     *      ..etc..
+     *
+     *      所以我们引用模块可以舍去后缀，交给webpack自己补全.
+     *
+     *
+     */
+    , resolve: {
+        root: __dirname
+        , extensions: [
+            ''
+            , '.js'
+            , '.es6'
+            , '.css'
+            , '.less'
+            , '.sass'
+            , '.scss'
+            , '.coffee'
         ]
-    },
-    plugins: [commonsPlugin]
+        , alias: alias(modulesMap)
+    }
+
+    /**
+     *
+     * 指定一个自动执行的loader数组
+     * http://webpack.github.io/docs/configuration.html#module-loaders
+     * PS: 叹号“！”可以理解为 to 或 pipe
+     *
+     * webpack对敏捷开发的杀手：
+     *
+     *  IMPORTANT:
+     *      The loaders here are resolved relative to the resource which they are applied to.
+     *      This means they are not resolved relative the the configuration file.
+     *      If you have loaders installed from npm and your node_modules folder is not in a parent folder of all source files,
+     *      webpack cannot find the loader.
+     *      You need to add the node_modules folder as absolute path to the resolveLoader.root option.
+     *      (resolveLoader: { root: path.join(__dirname, "node_modules") })
+     *
+     * 关于root的配置，请继续往下看
+     *
+     *
+     */
+    , module: {
+        loaders: [
+
+            // css文件loader
+            {
+                test: /\.css$/
+                , loader: 'style-loader!css-loader'
+            }
+
+            // 图片文件loader
+            , {
+                test: /\.(png|jpg|gif)$/
+                , loader: 'url-loader?limit=8192'
+            }
+        ]
+    }
+
+    //
+    , plugins: [commonsPlugin]
+
+    //
+    , debug: true
+
+    /**
+     * 这！里！一！定！要！看！
+     *
+     * 我们日常开发如果是敏捷开发，都是从svn拉分支在co到某个目录，
+     * 但如果使用webpack，那么部分loader是不能安装到全局的，
+     * 但是我们又不想每次拉完分支都要去安装一遍loader。
+     *
+     * 所以，这里重配置了resolveLoader的 root，
+     * 会查找webpack工程的上一层目录，
+     * 这样我们只要保持一个loader的node_modules即可实现复用。
+     *
+     * 这也是没有办法的事，这点牺牲还是值得的，加油吧，骚年。
+     *
+     * loader被统一存放在 上一层目录的 node_modules 文件夹下
+     */
+    , resolveLoader: {
+        root: path.resolve(__dirname, '../node_modules/')
+    }
 };
+
 
 // 编译器
 var compiler = webpack(webpackConfig);

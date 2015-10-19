@@ -10,5 +10,5 @@
 /* global module */
 
 'use strict';
-
-console.log('dialog.js');
+require('./dialog.css');
+console.log('from dialog.js');
