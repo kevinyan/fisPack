@@ -23,6 +23,11 @@
     <button type="submit" class="btn btn-default">Submit</button>
 </form>
 
+
+<div class="dialog">
+    hi
+</div>
+
 <%/block%>
 <%block name="scripts"%>
 <script src="/static/profile.js"></script>

@@ -1,5 +1,5 @@
 /**
- *  测试版本的 fisp + webpack,代码乱。
+ *  fisp + webpack
  */
 
 /* global fis */
@@ -7,7 +7,13 @@
 
 // webpack 相关配置
 var webpack = require('webpack');
+
+// plugins
 var commonsPlugin = new webpack.optimize.CommonsChunkPlugin('common.js');
+
+// 如果有需求要将所有css文件提取出来，可以使用该插件
+// var ExtractTextPlugin = require("extract-text-webpack-plugin");
+
 var glob = require('glob');
 var path = require('path');
 
@@ -59,6 +65,8 @@ var dirResolver = function (pathPartPattern) {
     // 分析出路径
     var $paths = glob.sync(pathPartPattern);
 
+    var args = arguments;
+
     if (!$paths.length) {
         return null;
     }
@@ -66,7 +74,7 @@ var dirResolver = function (pathPartPattern) {
     $paths.forEach(
         function (name) {
 
-            var childPath = dirResolver(
+            var childPath = args.callee(
                 [name, '*'].join(path.sep)
             );
 
@@ -103,6 +111,8 @@ var entry = function (data) {
     return result;
 
 };
+
+console.log(entry(modulesMap));
 
 /**
  * 自动分析别名
@@ -150,8 +160,6 @@ var alias = function (data, traditional) {
     return result;
 };
 
-console.log(alias(modulesMap));
-
 // webpack配置
 var webpackConfig = {
 
@@ -168,6 +176,7 @@ var webpackConfig = {
         , filename: './[name].js'         // 出处包名称,相对路径
         , sourceMapFilename: '[name].map' // 输出map文件
         , jsonpFunction: 'fisPackJsonp'   // 对应多个webpack实例在运行环境中，这里修改为fisPackJsonp
+        , chunkFilename: "[id].js"
     }
 
     /**
@@ -229,19 +238,40 @@ var webpackConfig = {
             // css文件loader
             {
                 test: /\.css$/
-                , loader: 'style-loader!css-loader'
+                , loader: 'style-loader!css-loader?minimize'
             }
 
-            // 图片文件loader
+            // 常规的图片文件加载，会在static目录下，生成一个相应目录的图片文件句柄。
             , {
-                test: /\.(png|jpg|gif)$/
-                , loader: 'url-loader?limit=8192'
+                test: /\.(jpe?g|png|gif|svg)$/i
+                , loaders: [
+                    'file?name=[path][name].[ext]',
+                    'image-webpack?bypassOnDebug'
+                ]
             }
+
+            // Extract css files
+            // , {
+            //    test: /\.css$/,
+            //    loader: ExtractTextPlugin.extract("style-loader", "css-loader")
+            // }
+
+            // Optionally extract less files
+            // or any other compile-to-css language
+            // , {
+            //    test: /\.less$/,
+            //    loader: ExtractTextPlugin.extract("style-loader", "css-loader!less-loader")
+            // }
+
+            // You could also use other loaders the same way. I. e. the autoprefixer-loader
         ]
     }
 
     //
-    , plugins: [commonsPlugin]
+    , plugins: [
+        commonsPlugin
+        // , new ExtractTextPlugin("[name].css")
+    ]
 
     //
     , debug: true
@@ -266,7 +296,6 @@ var webpackConfig = {
     }
 };
 
-
 // 编译器
 var compiler = webpack(webpackConfig);
 
@@ -278,12 +307,13 @@ var argv = fis.cli.commander.args[0];
  * 细想也挺靠谱的，fisp只有 init、release、server、install几个一级命令。
  */
 ((argv._name === 'release') && (argv.watch))
-    ? compiler.watch({}, compilerCallBack) : compiler.run(compilerCallBack);
+    ? compiler.watch({}, compilerCallBack)
+    : compiler.run(compilerCallBack);
 
 var colorsFunc = fis.cli.colors;
 
 function compilerCallBack(err, stats) {
-    // TODO: 通过status打印编译日志.
+
     // 基础打印
     if (err) {
         return console.log(
@@ -309,6 +339,21 @@ function compilerCallBack(err, stats) {
         });
     }
 
+    console.log(jsonStats.reasons, '\n NEXT: \n', jsonStats.chunks);
+
+    jsonStats.chunks.forEach(function (data) {
+        console.log(
+            colorsFunc.green(
+                [
+                    'Output: '
+                    , data.files
+                    , ' Size: '
+                    , data.size
+                    , 'b'
+                ].join('')
+            )
+        )
+    });
+
 
 }
-

@@ -11,3 +11,5 @@
 
 'use strict';
 console.log('feed');
+
+var jq = {};

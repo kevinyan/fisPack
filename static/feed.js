@@ -16,5 +16,7 @@ fisPackJsonp([0,2],[
 	'use strict';
 	console.log('feed');
 
+	var jq = {};
+
 /***/ }
 ]);

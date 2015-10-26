@@ -10,5 +10,10 @@
 /* global module */
 
 'use strict';
-require('../../vendor/bootstrap/bootstrap');
-require('../../components/dialog/dialog');
+
+require('./profile.css');
+
+require("exports?jq!../feed/feed.js");
+
+
+
