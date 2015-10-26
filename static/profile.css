@@ -1,0 +1,24 @@
+body {
+    background-color: #eee;
+
+}
+
+.img {
+    width: 100px;
+    height: 100px;
+}
+
+.i-1 {
+    background-image: url(widget/modules/profile/img.jpg);
+}
+
+.i-2 {
+    background-image: url(widget/modules/profile/back-to-top.png);
+}
+
+.i-3 {
+    background-image: url(widget/modules/profile/solgan.i.png);
+}.dialog {
+    border: 1px solid #ccc;
+    padding: 1rem;
+}

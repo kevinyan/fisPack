@@ -1,0 +1,21 @@
+body {
+    background-color: #eee;
+
+}
+
+.img {
+    width: 100px;
+    height: 100px;
+}
+
+.i-1 {
+    background-image: url("img.jpg");
+}
+
+.i-2 {
+    background-image: url("back-to-top.png");
+}
+
+.i-3 {
+    background-image: url("solgan.i.png");
+}
